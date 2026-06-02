@@ -117,7 +117,8 @@ jobs:
 
           ./configure ARIA2_STATIC=yes --prefix=/tmp/aria2-install \
             $HOST_FLAG --without-libgnutls --with-openssl \
-            --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
+            --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt \
+            LDFLAGS="-L${{ env.DEPS_PREFIX }}/lib"
 
           make -j"$(nproc)" && make install-strip
 

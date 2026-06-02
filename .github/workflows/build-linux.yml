@@ -131,7 +131,8 @@ jobs:
           export LIBRARY_PATH="${{ env.DEPS_PREFIX }}/lib"
           ./configure ARIA2_STATIC=yes --prefix=/tmp/aria2-install \
             --host=aarch64-linux-gnu --without-libgnutls --with-openssl \
-            --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
+            --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt \
+            LDFLAGS="-L${{ env.DEPS_PREFIX }}/lib -fPIE -pie -static-libstdc++"
           make -j"$(nproc)" && make install-strip
 
       - name: Package binary
@@ -191,7 +192,8 @@ jobs:
           export LIBRARY_PATH="${{ env.DEPS_PREFIX }}/lib"
           ./configure ARIA2_STATIC=yes --prefix=/tmp/aria2-install \
             --host=arm-linux-gnueabihf --without-libgnutls --with-openssl \
-            --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
+            --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt \
+            LDFLAGS="-L${{ env.DEPS_PREFIX }}/lib -fPIE -pie -static-libstdc++"
           make -j"$(nproc)" && make install-strip
 
       - name: Package binary

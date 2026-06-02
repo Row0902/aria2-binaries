@@ -43,10 +43,11 @@ jobs:
             mingw-w64-x86_64-c-ares mingw-w64-x86_64-openssl
             mingw-w64-x86_64-libxml2 mingw-w64-x86_64-expat
             mingw-w64-x86_64-sqlite3 mingw-w64-x86_64-zlib
-            autoconf automake libtool pkg-config
+            autoconf automake libtool pkg-config gettext-devel
 
       - name: Generate configure script
-        run: autoreconf -i
+        # -fi: force rebuild, ignore missing autopoint data
+        run: autoreconf -fi
 
       - name: Configure, build, install
         run: |

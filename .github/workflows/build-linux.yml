@@ -40,6 +40,7 @@ jobs:
           sudo apt-get install -y -qq \
             autoconf automake autopoint libtool pkg-config \
             libcppunit-dev libssl-dev libxml2-dev libexpat1-dev \
+            liblzma-dev libgpg-error-dev \
             libc-ares-dev zlib1g-dev libsqlite3-dev libssh2-1-dev g++ make
 
       - name: Generate configure script
@@ -77,7 +78,8 @@ jobs:
       - name: Set up multiarch and install cross-toolchain
         run: |
           sudo dpkg --add-architecture arm64
-          sudo apt-get update -qq
+          # Ignore 404s from repos that don't support this architecture
+          sudo apt-get update -qq 2>&1 | grep -v 'Failed to fetch' || true
           sudo apt-get install -y -qq \
             autoconf automake autopoint libtool pkg-config \
             g++-aarch64-linux-gnu binutils-aarch64-linux-gnu \
@@ -120,7 +122,8 @@ jobs:
       - name: Set up multiarch and install cross-toolchain
         run: |
           sudo dpkg --add-architecture armhf
-          sudo apt-get update -qq
+          # Ignore 404s from repos that don't support this architecture
+          sudo apt-get update -qq 2>&1 | grep -v 'Failed to fetch' || true
           sudo apt-get install -y -qq \
             autoconf automake autopoint libtool pkg-config \
             g++-arm-linux-gnueabihf binutils-arm-linux-gnueabihf \

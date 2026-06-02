@@ -87,7 +87,8 @@ export LIBRARY_PATH="$INSTALL_DIR/lib"
 
 # Helper: download and extract
 fetch_and_extract() {
-  local name="$1" url="$2" filename="$3"
+  local name="$1" url="$2"
+  local filename="${3:-}"
   if [ -z "$filename" ]; then
     filename="$(basename "$url")"
   fi

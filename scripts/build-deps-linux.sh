@@ -107,9 +107,12 @@ build_autotools() {
   shift 2
   cd "$SRC_DIR/$dir"
   echo ">>> Configuring $name"
+  # Determine build triple: dpkg-architecture returns the full triple,
+  # uname -m needs -linux-gnu appended.
+  BUILD_TRIPLE="$(dpkg-architecture -qDEB_BUILD_GNU_TYPE 2>/dev/null || echo "$(uname -m)-linux-gnu")"
   ./configure \
     --host="$CONFIGURE_HOST" \
-    --build="$(dpkg-architecture -qDEB_BUILD_GNU_TYPE 2>/dev/null || uname -m)-linux-gnu" \
+    --build="$BUILD_TRIPLE" \
     --prefix="$INSTALL_DIR" \
     --disable-shared \
     --enable-static \
@@ -128,9 +131,10 @@ build_cares() {
   cd "$SRC_DIR/c-ares-$CARES_VERSION"
 
   echo ">>> Configuring c-ares"
+  BUILD_TRIPLE="$(dpkg-architecture -qDEB_BUILD_GNU_TYPE 2>/dev/null || echo "$(uname -m)-linux-gnu")"
   ./configure \
     --host="$CONFIGURE_HOST" \
-    --build="$(dpkg-architecture -qDEB_BUILD_GNU_TYPE 2>/dev/null || uname -m)-linux-gnu" \
+    --build="$BUILD_TRIPLE" \
     --prefix="$INSTALL_DIR" \
     --disable-shared \
     --enable-static \

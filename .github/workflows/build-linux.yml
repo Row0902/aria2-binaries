@@ -23,31 +23,53 @@ defaults:
 env:
   UPSTREAM_REPO: aria2/aria2
   UPSTREAM_BRANCH: master
+  DEPS_PREFIX: /tmp/aria2-deps
 
 jobs:
   build-x86_64:
     runs-on: ubuntu-24.04
     steps:
+      - name: Checkout this repo (for build scripts)
+        uses: actions/checkout@v6
+
       - name: Checkout upstream aria2
         uses: actions/checkout@v6
         with:
           repository: ${{ env.UPSTREAM_REPO }}
           ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
+          path: aria2-src
 
-      - name: Install build dependencies
+      - name: Install build dependencies (native)
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
             autoconf automake autopoint libtool pkg-config \
             libcppunit-dev libssl-dev libxml2-dev libexpat1-dev \
             liblzma-dev libgpg-error-dev \
-            libc-ares-dev zlib1g-dev libsqlite3-dev libssh2-1-dev g++ make
+            zlib1g-dev libsqlite3-dev libssh2-1-dev g++ make curl
+
+      - name: Build c-ares from source (static)
+        run: |
+          mkdir -p /tmp/cares-build
+          cd /tmp/cares-build
+          CARES_VERSION="1.34.6"
+          curl -fSL -o "c-ares-$CARES_VERSION.tar.gz" \
+            "https://github.com/c-ares/c-ares/releases/download/v${CARES_VERSION}/c-ares-${CARES_VERSION}.tar.gz"
+          tar xf "c-ares-$CARES_VERSION.tar.gz"
+          cd "c-ares-$CARES_VERSION"
+          ./configure --prefix="${{ env.DEPS_PREFIX }}" \
+            --disable-shared --enable-static \
+            --disable-tests --disable-debug
+          make -j"$(nproc)" install
 
       - name: Generate configure script
+        working-directory: aria2-src
         run: autoreconf -i
 
       - name: Configure, build, install
+        working-directory: aria2-src
         run: |
+          export PKG_CONFIG_PATH="${{ env.DEPS_PREFIX }}/lib/pkgconfig:$PKG_CONFIG_PATH"
           ./configure ARIA2_STATIC=yes --prefix=/tmp/aria2-install \
             --without-libgnutls --with-openssl \
             --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
@@ -60,6 +82,12 @@ jobs:
           strip dist/aria2c-linux-x86_64
           chmod +x dist/aria2c-linux-x86_64
 
+      - name: Smoke test binary
+        run: |
+          ./dist/aria2c-linux-x86_64 --version
+          ./dist/aria2c-linux-x86_64 --help > /dev/null
+          echo "✅ Smoke test passed"
+
       - uses: actions/upload-artifact@v7
         with:
           name: aria2c-linux-x86_64
@@ -69,29 +97,38 @@ jobs:
   build-aarch64:
     runs-on: ubuntu-24.04
     steps:
+      - name: Checkout this repo (for build scripts)
+        uses: actions/checkout@v6
+
       - name: Checkout upstream aria2
         uses: actions/checkout@v6
         with:
           repository: ${{ env.UPSTREAM_REPO }}
           ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
+          path: aria2-src
 
-      - name: Set up multiarch and install cross-toolchain
+      - name: Install cross-toolchain
         run: |
-          sudo dpkg --add-architecture arm64
-          # Ignore 404s from repos that don't support this architecture
-          sudo apt-get update -qq 2>&1 | grep -v 'Failed to fetch' || true
+          sudo apt-get update -qq
           sudo apt-get install -y -qq \
             autoconf automake autopoint libtool pkg-config \
             g++-aarch64-linux-gnu binutils-aarch64-linux-gnu \
-            libssl-dev:arm64 libxml2-dev:arm64 libexpat1-dev:arm64 \
-            libc-ares-dev:arm64 zlib1g-dev:arm64 libsqlite3-dev:arm64 \
-            libssh2-1-dev:arm64
+            curl make ca-certificates
+
+      - name: Build all deps from source (cross)
+        run: |
+          bash scripts/build-deps-linux.sh aarch64 "${{ env.DEPS_PREFIX }}"
 
       - name: Generate configure script
+        working-directory: aria2-src
         run: autoreconf -i
 
       - name: Configure, build, install (cross)
+        working-directory: aria2-src
         run: |
+          export PKG_CONFIG_PATH="${{ env.DEPS_PREFIX }}/lib/pkgconfig"
+          export CPATH="${{ env.DEPS_PREFIX }}/include"
+          export LIBRARY_PATH="${{ env.DEPS_PREFIX }}/lib"
           ./configure ARIA2_STATIC=yes --prefix=/tmp/aria2-install \
             --host=aarch64-linux-gnu --without-libgnutls --with-openssl \
             --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
@@ -104,6 +141,13 @@ jobs:
           aarch64-linux-gnu-strip dist/aria2c-linux-aarch64
           chmod +x dist/aria2c-linux-aarch64
 
+      - name: Smoke test binary (via qemu)
+        run: |
+          sudo apt-get install -y -qq qemu-user-static
+          qemu-aarch64-static ./dist/aria2c-linux-aarch64 --version
+          qemu-aarch64-static ./dist/aria2c-linux-aarch64 --help > /dev/null
+          echo "✅ Smoke test passed"
+
       - uses: actions/upload-artifact@v7
         with:
           name: aria2c-linux-aarch64
@@ -113,29 +157,38 @@ jobs:
   build-armv7:
     runs-on: ubuntu-24.04
     steps:
+      - name: Checkout this repo (for build scripts)
+        uses: actions/checkout@v6
+
       - name: Checkout upstream aria2
         uses: actions/checkout@v6
         with:
           repository: ${{ env.UPSTREAM_REPO }}
           ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
+          path: aria2-src
 
-      - name: Set up multiarch and install cross-toolchain
+      - name: Install cross-toolchain
         run: |
-          sudo dpkg --add-architecture armhf
-          # Ignore 404s from repos that don't support this architecture
-          sudo apt-get update -qq 2>&1 | grep -v 'Failed to fetch' || true
+          sudo apt-get update -qq
           sudo apt-get install -y -qq \
             autoconf automake autopoint libtool pkg-config \
             g++-arm-linux-gnueabihf binutils-arm-linux-gnueabihf \
-            libssl-dev:armhf libxml2-dev:armhf libexpat1-dev:armhf \
-            libc-ares-dev:armhf zlib1g-dev:armhf libsqlite3-dev:armhf \
-            libssh2-1-dev:armhf
+            curl make ca-certificates
+
+      - name: Build all deps from source (cross)
+        run: |
+          bash scripts/build-deps-linux.sh armv7 "${{ env.DEPS_PREFIX }}"
 
       - name: Generate configure script
+        working-directory: aria2-src
         run: autoreconf -i
 
       - name: Configure, build, install (cross)
+        working-directory: aria2-src
         run: |
+          export PKG_CONFIG_PATH="${{ env.DEPS_PREFIX }}/lib/pkgconfig"
+          export CPATH="${{ env.DEPS_PREFIX }}/include"
+          export LIBRARY_PATH="${{ env.DEPS_PREFIX }}/lib"
           ./configure ARIA2_STATIC=yes --prefix=/tmp/aria2-install \
             --host=arm-linux-gnueabihf --without-libgnutls --with-openssl \
             --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
@@ -147,6 +200,13 @@ jobs:
           cp /tmp/aria2-install/bin/aria2c dist/aria2c-linux-armv7
           arm-linux-gnueabihf-strip dist/aria2c-linux-armv7
           chmod +x dist/aria2c-linux-armv7
+
+      - name: Smoke test binary (via qemu)
+        run: |
+          sudo apt-get install -y -qq qemu-user-static
+          qemu-arm-static ./dist/aria2c-linux-armv7 --version
+          qemu-arm-static ./dist/aria2c-linux-armv7 --help > /dev/null
+          echo "✅ Smoke test passed"
 
       - uses: actions/upload-artifact@v7
         with:

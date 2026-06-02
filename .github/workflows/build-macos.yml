@@ -55,6 +55,12 @@ jobs:
           cp /tmp/aria2-install/bin/aria2c dist/aria2c-darwin-x86_64
           chmod +x dist/aria2c-darwin-x86_64
 
+      - name: Smoke test binary
+        run: |
+          ./dist/aria2c-darwin-x86_64 --version
+          ./dist/aria2c-darwin-x86_64 --help > /dev/null
+          echo "✅ Smoke test passed"
+
       - uses: actions/upload-artifact@v7
         with:
           name: aria2c-darwin-x86_64
@@ -90,6 +96,12 @@ jobs:
           mkdir -p dist
           cp /tmp/aria2-install/bin/aria2c dist/aria2c-darwin-arm64
           chmod +x dist/aria2c-darwin-arm64
+
+      - name: Smoke test binary
+        run: |
+          ./dist/aria2c-darwin-arm64 --version
+          ./dist/aria2c-darwin-arm64 --help > /dev/null
+          echo "✅ Smoke test passed"
 
       - uses: actions/upload-artifact@v7
         with:

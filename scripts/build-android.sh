@@ -124,6 +124,9 @@ cd "openssl-$OPENSSL_VERSION"
 
 # OpenSSL Configure uses different env vars
 export ANDROID_NDK_HOME
+# NDK r29+ only has clang (no gcc). OpenSSL's 15-android.conf
+# finds the NDK toolchain via PATH when ANDROID_NDK_HOME is set.
+export PATH="$TOOLCHAIN/bin:$PATH"
 
 ./Configure \
   no-shared \

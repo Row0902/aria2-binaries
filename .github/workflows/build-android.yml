@@ -60,6 +60,13 @@ jobs:
         env:
           ANDROID_API: ${{ env.ANDROID_API }}
 
+      - name: Smoke test binary (via qemu)
+        run: |
+          sudo apt-get install -y -qq qemu-user-static
+          qemu-aarch64-static aria2-src/dist/aria2c-android-aarch64 --version
+          qemu-aarch64-static aria2-src/dist/aria2c-android-aarch64 --help > /dev/null
+          echo "✅ Smoke test passed"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
@@ -100,6 +107,13 @@ jobs:
         env:
           ANDROID_API: ${{ env.ANDROID_API }}
 
+      - name: Smoke test binary (via qemu)
+        run: |
+          sudo apt-get install -y -qq qemu-user-static
+          qemu-arm-static aria2-src/dist/aria2c-android-armv7 --version
+          qemu-arm-static aria2-src/dist/aria2c-android-armv7 --help > /dev/null
+          echo "✅ Smoke test passed"
+
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
@@ -139,6 +153,13 @@ jobs:
           ../scripts/build-android.sh x86_64
         env:
           ANDROID_API: ${{ env.ANDROID_API }}
+
+      - name: Smoke test binary (via qemu)
+        run: |
+          sudo apt-get install -y -qq qemu-user-static
+          qemu-x86_64-static aria2-src/dist/aria2c-android-x86_64 --version
+          qemu-x86_64-static aria2-src/dist/aria2c-android-x86_64 --help > /dev/null
+          echo "✅ Smoke test passed"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7

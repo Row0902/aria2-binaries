@@ -53,7 +53,8 @@ jobs:
         run: |
           ./configure ARIA2_STATIC=yes --prefix=/tmp/aria2-install \
             --host=x86_64-w64-mingw32 --without-libgnutls \
-            --with-openssl --without-libssh2
+            --with-openssl --without-libssh2 \
+            --disable-websocket
           make -j"$(nproc)" && make install-strip
 
       - name: Package binary
@@ -61,6 +62,13 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item /tmp/aria2-install/bin/aria2c.exe dist/aria2c-windows-amd64.exe -Force
+
+      - name: Smoke test binary
+        shell: pwsh
+        run: |
+          .\dist\aria2c-windows-amd64.exe --version
+          .\dist\aria2c-windows-amd64.exe --help | Out-Null
+          Write-Host "✅ Smoke test passed"
 
       - uses: actions/upload-artifact@v7
         with:

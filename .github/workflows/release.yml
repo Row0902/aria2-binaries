@@ -28,6 +28,7 @@ env:
   UPSTREAM_BRANCH: master
   NDK_VERSION: r29
   ANDROID_API: 24
+  DEPS_PREFIX: /tmp/aria2-deps
 
 jobs:
   build-linux:
@@ -38,56 +39,81 @@ jobs:
           - arch: x86_64
             host: ""
             strip-cmd: strip
-            deb-deps: libcppunit-dev libssl-dev libxml2-dev libexpat1-dev liblzma-dev libgpg-error-dev libc-ares-dev zlib1g-dev libsqlite3-dev libssh2-1-dev
-            cross-deps: ""
-            multiarch: ""
+            deps_mode: native
+            qemu_test: ""
           - arch: aarch64
             host: aarch64-linux-gnu
             strip-cmd: aarch64-linux-gnu-strip
-            deb-deps: ""
-            cross-deps: g++-aarch64-linux-gnu binutils-aarch64-linux-gnu libssl-dev:arm64 libxml2-dev:arm64 libexpat1-dev:arm64 libc-ares-dev:arm64 zlib1g-dev:arm64 libsqlite3-dev:arm64 libssh2-1-dev:arm64
-            multiarch: arm64
+            deps_mode: cross
+            qemu_test: qemu-aarch64-static
           - arch: armv7
             host: arm-linux-gnueabihf
             strip-cmd: arm-linux-gnueabihf-strip
-            deb-deps: ""
-            cross-deps: g++-arm-linux-gnueabihf binutils-arm-linux-gnueabihf libssl-dev:armhf libxml2-dev:armhf libexpat1-dev:armhf libc-ares-dev:armhf zlib1g-dev:armhf libsqlite3-dev:armhf libssh2-1-dev:armhf
-            multiarch: armhf
+            deps_mode: cross
+            qemu_test: qemu-arm-static
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout this repo (for build scripts)
+        uses: actions/checkout@v6
+
+      - name: Checkout upstream aria2
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.UPSTREAM_REPO }}
           ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
+          path: aria2-src
 
-      - name: Install build dependencies
+      - name: Install build dependencies (native)
+        if: ${{ matrix.deps_mode == 'native' }}
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
             autoconf automake autopoint libtool pkg-config \
-            curl ca-certificates make g++
+            libcppunit-dev libssl-dev libxml2-dev libexpat1-dev \
+            liblzma-dev libgpg-error-dev \
+            zlib1g-dev libsqlite3-dev libssh2-1-dev g++ make curl
 
-      - name: Install native deps
-        if: ${{ matrix.deb-deps != '' }}
-        run: sudo apt-get install -y -qq ${{ matrix.deb-deps }}
-
-      - name: Enable multiarch
-        if: ${{ matrix.multiarch != '' }}
+      - name: Build c-ares from source (static)
+        if: ${{ matrix.deps_mode == 'native' }}
         run: |
-          sudo dpkg --add-architecture ${{ matrix.multiarch }}
-          # Ignore 404s from repos that don't support this architecture
-          sudo apt-get update -qq 2>&1 | grep -v 'Failed to fetch' || true
+          mkdir -p /tmp/cares-build
+          cd /tmp/cares-build
+          CARES_VERSION="1.34.6"
+          curl -fSL -o "c-ares-$CARES_VERSION.tar.gz" \
+            "https://github.com/c-ares/c-ares/releases/download/v${CARES_VERSION}/c-ares-${CARES_VERSION}.tar.gz"
+          tar xf "c-ares-$CARES_VERSION.tar.gz"
+          cd "c-ares-$CARES_VERSION"
+          ./configure --prefix="${{ env.DEPS_PREFIX }}" \
+            --disable-shared --enable-static \
+            --disable-tests --disable-debug
+          make -j"$(nproc)" install
 
       - name: Install cross-toolchain
-        if: ${{ matrix.cross-deps != '' }}
-        run: sudo apt-get install -y -qq ${{ matrix.cross-deps }}
+        if: ${{ matrix.deps_mode == 'cross' }}
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            autoconf automake autopoint libtool pkg-config \
+            g++-${{ matrix.host }} binutils-${{ matrix.host }} \
+            curl make ca-certificates
+
+      - name: Build all deps from source (cross)
+        if: ${{ matrix.deps_mode == 'cross' }}
+        run: |
+          bash scripts/build-deps-linux.sh ${{ matrix.arch }} "${{ env.DEPS_PREFIX }}"
 
       - name: Generate configure script
+        working-directory: aria2-src
         run: autoreconf -i
 
       - name: Configure, build, install
+        working-directory: aria2-src
         run: |
           HOST_FLAG="${{ matrix.host && format('--host={0}', matrix.host) }}"
+
+          export PKG_CONFIG_PATH="${{ env.DEPS_PREFIX }}/lib/pkgconfig"
+          export CPATH="${{ env.DEPS_PREFIX }}/include"
+          export LIBRARY_PATH="${{ env.DEPS_PREFIX }}/lib"
 
           ./configure ARIA2_STATIC=yes --prefix=/tmp/aria2-install \
             $HOST_FLAG --without-libgnutls --with-openssl \
@@ -95,10 +121,23 @@ jobs:
 
           make -j"$(nproc)" && make install-strip
 
-          mkdir -p dist
-          cp /tmp/aria2-install/bin/aria2c "dist/aria2c-linux-${{ matrix.arch }}"
-          ${{ matrix.strip-cmd }} "dist/aria2c-linux-${{ matrix.arch }}"
-          chmod +x "dist/aria2c-linux-${{ matrix.arch }}"
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+          cp /tmp/aria2-install/bin/aria2c "$GITHUB_WORKSPACE/dist/aria2c-linux-${{ matrix.arch }}"
+          ${{ matrix.strip-cmd }} "$GITHUB_WORKSPACE/dist/aria2c-linux-${{ matrix.arch }}"
+          chmod +x "$GITHUB_WORKSPACE/dist/aria2c-linux-${{ matrix.arch }}"
+
+      - name: Smoke test binary
+        run: |
+          TEST_CMD="${{ matrix.qemu_test }}"
+          if [ -n "$TEST_CMD" ]; then
+            sudo apt-get install -y -qq qemu-user-static
+            $TEST_CMD ./dist/aria2c-linux-${{ matrix.arch }} --version
+            $TEST_CMD ./dist/aria2c-linux-${{ matrix.arch }} --help > /dev/null
+          else
+            ./dist/aria2c-linux-${{ matrix.arch }} --version
+            ./dist/aria2c-linux-${{ matrix.arch }} --help > /dev/null
+          fi
+          echo "✅ Smoke test passed"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -141,6 +180,12 @@ jobs:
           cp /tmp/aria2-install/bin/aria2c "dist/aria2c-darwin-${{ matrix.arch }}"
           chmod +x "dist/aria2c-darwin-${{ matrix.arch }}"
 
+      - name: Smoke test binary
+        run: |
+          ./dist/aria2c-darwin-${{ matrix.arch }} --version
+          ./dist/aria2c-darwin-${{ matrix.arch }} --help > /dev/null
+          echo "✅ Smoke test passed"
+
       - uses: actions/upload-artifact@v7
         with:
           name: aria2c-darwin-${{ matrix.arch }}
@@ -177,7 +222,8 @@ jobs:
         run: |
           ./configure ARIA2_STATIC=yes --prefix=/tmp/aria2-install \
             --host=x86_64-w64-mingw32 --without-libgnutls \
-            --with-openssl --without-libssh2
+            --with-openssl --without-libssh2 \
+            --disable-websocket
           make -j"$(nproc)" && make install-strip
 
       - name: Package binary
@@ -185,6 +231,13 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item /tmp/aria2-install/bin/aria2c.exe dist/aria2c-windows-amd64.exe -Force
+
+      - name: Smoke test binary
+        shell: pwsh
+        run: |
+          .\dist\aria2c-windows-amd64.exe --version
+          .\dist\aria2c-windows-amd64.exe --help | Out-Null
+          Write-Host "✅ Smoke test passed"
 
       - uses: actions/upload-artifact@v7
         with:
@@ -228,6 +281,18 @@ jobs:
           ../scripts/build-android.sh ${{ matrix.arch }}
         env:
           ANDROID_API: ${{ env.ANDROID_API }}
+
+      - name: Smoke test binary (via qemu)
+        run: |
+          sudo apt-get install -y -qq qemu-user-static
+          QEMU_CMD="qemu-${{ matrix.arch }}-static"
+          # armv7 uses qemu-arm-static, not qemu-armv7-static
+          if [ "${{ matrix.arch }}" = "armv7" ]; then
+            QEMU_CMD="qemu-arm-static"
+          fi
+          $QEMU_CMD aria2-src/dist/aria2c-android-${{ matrix.arch }} --version
+          $QEMU_CMD aria2-src/dist/aria2c-android-${{ matrix.arch }} --help > /dev/null
+          echo "✅ Smoke test passed"
 
       - uses: actions/upload-artifact@v7
         with:

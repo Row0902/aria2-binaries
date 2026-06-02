@@ -1,0 +1,48 @@
+name: Build aria2 (Windows)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "aria2 version tag (e.g. release-1.37.0)"
+        required: true
+        default: "release-1.37.0"
+  push:
+    tags:
+      - "release-*"
+
+jobs:
+  build-amd64:
+    runs-on: windows-2025
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: aria2/aria2
+          ref: ${{ github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'release-1.37.0' }}
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            base-devel mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-c-ares mingw-w64-x86_64-openssl
+            mingw-w64-x86_64-libxml2 mingw-w64-x86_64-expat
+            mingw-w64-x86_64-sqlite3 mingw-w64-x86_64-zlib
+            autoconf automake libtool pkg-config
+      - run: |
+          ./configure ARIA2_STATIC=yes --prefix=/tmp/aria2-install \
+            --host=x86_64-w64-mingw32 --without-libgnutls \
+            --with-openssl --without-libssh2
+          make -j"$(nproc)" && make install-strip
+      - shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist
+          Copy-Item /tmp/aria2-install/bin/aria2c.exe dist/aria2c-windows-amd64.exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aria2c-windows-amd64
+          path: dist/aria2c-windows-amd64.exe
+          compression-level: 0

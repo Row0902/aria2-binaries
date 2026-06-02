@@ -1,0 +1,100 @@
+name: Build aria2 (Linux)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "aria2 version tag (e.g. release-1.37.0)"
+        required: true
+        default: "release-1.37.0"
+  push:
+    tags:
+      - "release-*"
+
+jobs:
+  build-x86_64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: aria2/aria2
+          ref: ${{ github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'release-1.37.0' }}
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            autoconf automake autopoint libtool pkg-config \
+            libcppunit-dev libssl-dev libxml2-dev libexpat1-dev \
+            libc-ares-dev zlib1g-dev libsqlite3-dev libssh2-1-dev g++ make
+      - run: |
+          ./configure ARIA2_STATIC=yes --prefix=/tmp/aria2-install \
+            --without-libgnutls --with-openssl \
+            --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
+          make -j"$(nproc)" && make install-strip
+      - run: |
+          mkdir -p dist
+          cp /tmp/aria2-install/bin/aria2c dist/aria2c-linux-x86_64
+          strip dist/aria2c-linux-x86_64
+          chmod +x dist/aria2c-linux-x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aria2c-linux-x86_64
+          path: dist/aria2c-linux-x86_64
+          compression-level: 0
+
+  build-aarch64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: aria2/aria2
+          ref: ${{ github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'release-1.37.0' }}
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            autoconf automake autopoint libtool pkg-config \
+            g++-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+            libssl-dev:arm64 libxml2-dev:arm64 libexpat1-dev:arm64 \
+            libc-ares-dev:arm64 zlib1g-dev:arm64 libsqlite3-dev:arm64
+      - run: |
+          ./configure ARIA2_STATIC=yes --prefix=/tmp/aria2-install \
+            --host=aarch64-linux-gnu --without-libgnutls --with-openssl \
+            --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
+          make -j"$(nproc)" && make install-strip
+      - run: |
+          mkdir -p dist
+          cp /tmp/aria2-install/bin/aria2c dist/aria2c-linux-aarch64
+          aarch64-linux-gnu-strip dist/aria2c-linux-aarch64
+          chmod +x dist/aria2c-linux-aarch64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aria2c-linux-aarch64
+          path: dist/aria2c-linux-aarch64
+          compression-level: 0
+
+  build-armv7:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: aria2/aria2
+          ref: ${{ github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'release-1.37.0' }}
+      - run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            autoconf automake autopoint libtool pkg-config \
+            g++-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
+      - run: |
+          ./configure ARIA2_STATIC=yes --prefix=/tmp/aria2-install \
+            --host=arm-linux-gnueabihf --without-libgnutls --with-openssl \
+            --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
+          make -j"$(nproc)" && make install-strip
+      - run: |
+          mkdir -p dist
+          cp /tmp/aria2-install/bin/aria2c dist/aria2c-linux-armv7
+          arm-linux-gnueabihf-strip dist/aria2c-linux-armv7
+          chmod +x dist/aria2c-linux-armv7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aria2c-linux-armv7
+          path: dist/aria2c-linux-armv7
+          compression-level: 0

@@ -1,0 +1,138 @@
+name: Build aria2 (Android)
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "aria2 version tag (e.g. release-1.37.0)"
+        required: true
+        default: "release-1.37.0"
+  push:
+    tags:
+      - "release-*"
+
+jobs:
+  build-aarch64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: aria2/aria2
+          ref: ${{ github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'release-1.37.0' }}
+      - uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27
+          add-to-path: false
+      - run: |
+          export TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64
+          export TARGET=aarch64-linux-android
+          export API=24
+          export CC=$TOOLCHAIN/bin/$TARGET$API-clang
+          export CXX=$TOOLCHAIN/bin/$TARGET$API-clang++
+          export AR=$TOOLCHAIN/bin/llvm-ar
+          export RANLIB=$TOOLCHAIN/bin/llvm-ranlib
+          export LD=$TOOLCHAIN/bin/ld
+          export STRIP=$TOOLCHAIN/bin/llvm-strip
+
+          ./configure \
+            ARIA2_STATIC=yes \
+            --prefix=/tmp/aria2-install \
+            --host=$TARGET \
+            --without-libgnutls \
+            --with-openssl --disable-openssl \
+            --without-libnettle \
+            --without-libgmp \
+            --without-libgcrypt \
+            --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
+          make -j"$(nproc)" && make install-strip
+      - run: |
+          mkdir -p dist
+          cp /tmp/aria2-install/bin/aria2c dist/aria2c-android-aarch64
+          chmod +x dist/aria2c-android-aarch64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aria2c-android-aarch64
+          path: dist/aria2c-android-aarch64
+          compression-level: 0
+
+  build-armv7:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: aria2/aria2
+          ref: ${{ github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'release-1.37.0' }}
+      - uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27
+          add-to-path: false
+      - run: |
+          export TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64
+          export TARGET=armv7a-linux-androideabi
+          export API=24
+          export CC=$TOOLCHAIN/bin/$TARGET$API-clang
+          export CXX=$TOOLCHAIN/bin/$TARGET$API-clang++
+          export AR=$TOOLCHAIN/bin/llvm-ar
+          export RANLIB=$TOOLCHAIN/bin/llvm-ranlib
+          export LD=$TOOLCHAIN/bin/ld
+          export STRIP=$TOOLCHAIN/bin/llvm-strip
+
+          ./configure \
+            ARIA2_STATIC=yes \
+            --prefix=/tmp/aria2-install \
+            --host=arm-linux-androideabi \
+            --without-libgnutls \
+            --with-openssl --disable-openssl \
+            --without-libnettle --without-libgmp \
+            --without-libgcrypt
+          make -j"$(nproc)" && make install-strip
+      - run: |
+          mkdir -p dist
+          cp /tmp/aria2-install/bin/aria2c dist/aria2c-android-armv7
+          chmod +x dist/aria2c-android-armv7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aria2c-android-armv7
+          path: dist/aria2c-android-armv7
+          compression-level: 0
+
+  build-x86_64:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: aria2/aria2
+          ref: ${{ github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'release-1.37.0' }}
+      - uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r27
+          add-to-path: false
+      - run: |
+          export TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64
+          export TARGET=x86_64-linux-android
+          export API=24
+          export CC=$TOOLCHAIN/bin/$TARGET$API-clang
+          export CXX=$TOOLCHAIN/bin/$TARGET$API-clang++
+          export AR=$TOOLCHAIN/bin/llvm-ar
+          export RANLIB=$TOOLCHAIN/bin/llvm-ranlib
+          export LD=$TOOLCHAIN/bin/ld
+          export STRIP=$TOOLCHAIN/bin/llvm-strip
+
+          ./configure \
+            ARIA2_STATIC=yes \
+            --prefix=/tmp/aria2-install \
+            --host=$TARGET \
+            --without-libgnutls \
+            --with-openssl --disable-openssl \
+            --without-libnettle --without-libgmp \
+            --without-libgcrypt
+          make -j"$(nproc)" && make install-strip
+      - run: |
+          mkdir -p dist
+          cp /tmp/aria2-install/bin/aria2c dist/aria2c-android-x86_64
+          chmod +x dist/aria2c-android-x86_64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: aria2c-android-x86_64
+          path: dist/aria2c-android-x86_64
+          compression-level: 0

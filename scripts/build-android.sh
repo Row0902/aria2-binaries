@@ -56,10 +56,10 @@ API="${ANDROID_API:-24}"
 JOBS="${JOBS:-$(nproc)}"
 
 # Library versions (matching upstream Dockerfile.android)
-OPENSSL_VERSION="${OPENSSL_VERSION:-1.1.1w}"
-LIBEXPAT_VERSION="${LIBEXPAT_VERSION:-2.5.0}"
-ZLIB_VERSION="${ZLIB_VERSION:-1.3.1}"
-CARES_VERSION="${CARES_VERSION:-1.21.0}"
+OPENSSL_VERSION="${OPENSSL_VERSION:-3.4.5}"
+LIBEXPAT_VERSION="${LIBEXPAT_VERSION:-2.8.1}"
+ZLIB_VERSION="${ZLIB_VERSION:-1.3.2}"
+CARES_VERSION="${CARES_VERSION:-1.34.6}"
 
 echo "=========================================="
 echo " Building aria2 for Android - $TARGET"
@@ -193,7 +193,7 @@ echo ">>> Building c-ares $CARES_VERSION"
 cd "$SRC_DIR"
 if [ ! -f "c-ares-$CARES_VERSION.tar.gz" ]; then
   curl -fSL -o "c-ares-$CARES_VERSION.tar.gz" \
-    "https://github.com/c-ares/c-ares/releases/download/cares-$(echo $CARES_VERSION | tr . _)/c-ares-$CARES_VERSION.tar.gz"
+    "https://github.com/c-ares/c-ares/releases/download/v$CARES_VERSION/c-ares-$CARES_VERSION.tar.gz"
 fi
 tar xf "c-ares-$CARES_VERSION.tar.gz"
 cd "c-ares-$CARES_VERSION"

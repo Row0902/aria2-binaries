@@ -28,7 +28,7 @@ jobs:
         shell: msys2 {0}
     steps:
       - name: Checkout upstream aria2
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.UPSTREAM_REPO }}
           ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
@@ -62,7 +62,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item /tmp/aria2-install/bin/aria2c.exe dist/aria2c-windows-amd64.exe -Force
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: aria2c-windows-amd64
           path: dist/aria2c-windows-amd64.exe

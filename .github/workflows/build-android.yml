@@ -23,7 +23,7 @@ defaults:
 env:
   UPSTREAM_REPO: aria2/aria2
   UPSTREAM_BRANCH: master
-  NDK_VERSION: r27
+  NDK_VERSION: r29
   ANDROID_API: 24
 
 jobs:
@@ -31,10 +31,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout this repo (for build scripts)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Checkout upstream aria2 source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.UPSTREAM_REPO }}
           ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
@@ -61,7 +61,7 @@ jobs:
           ANDROID_API: ${{ env.ANDROID_API }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: aria2c-android-aarch64
           path: aria2-src/dist/aria2c-android-aarch64
@@ -71,10 +71,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout this repo (for build scripts)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Checkout upstream aria2 source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.UPSTREAM_REPO }}
           ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
@@ -101,7 +101,7 @@ jobs:
           ANDROID_API: ${{ env.ANDROID_API }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: aria2c-android-armv7
           path: aria2-src/dist/aria2c-android-armv7
@@ -111,10 +111,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout this repo (for build scripts)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Checkout upstream aria2 source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.UPSTREAM_REPO }}
           ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
@@ -141,7 +141,7 @@ jobs:
           ANDROID_API: ${{ env.ANDROID_API }}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: aria2c-android-x86_64
           path: aria2-src/dist/aria2c-android-x86_64

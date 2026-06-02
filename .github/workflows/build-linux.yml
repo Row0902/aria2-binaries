@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout upstream aria2
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.UPSTREAM_REPO }}
           ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
@@ -60,7 +60,7 @@ jobs:
           strip dist/aria2c-linux-x86_64
           chmod +x dist/aria2c-linux-x86_64
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: aria2c-linux-x86_64
           path: dist/aria2c-linux-x86_64
@@ -70,7 +70,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout upstream aria2
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.UPSTREAM_REPO }}
           ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
@@ -104,7 +104,7 @@ jobs:
           aarch64-linux-gnu-strip dist/aria2c-linux-aarch64
           chmod +x dist/aria2c-linux-aarch64
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: aria2c-linux-aarch64
           path: dist/aria2c-linux-aarch64
@@ -114,7 +114,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout upstream aria2
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.UPSTREAM_REPO }}
           ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
@@ -148,7 +148,7 @@ jobs:
           arm-linux-gnueabihf-strip dist/aria2c-linux-armv7
           chmod +x dist/aria2c-linux-armv7
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: aria2c-linux-armv7
           path: dist/aria2c-linux-armv7

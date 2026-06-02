@@ -26,7 +26,7 @@ defaults:
 env:
   UPSTREAM_REPO: aria2/aria2
   UPSTREAM_BRANCH: master
-  NDK_VERSION: r27
+  NDK_VERSION: r29
   ANDROID_API: 24
 
 jobs:
@@ -55,7 +55,7 @@ jobs:
             multiarch: armhf
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: ${{ env.UPSTREAM_REPO }}
           ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
@@ -100,7 +100,7 @@ jobs:
           ${{ matrix.strip-cmd }} "dist/aria2c-linux-${{ matrix.arch }}"
           chmod +x "dist/aria2c-linux-${{ matrix.arch }}"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: aria2c-linux-${{ matrix.arch }}
           path: dist/aria2c-linux-${{ matrix.arch }}
@@ -114,10 +114,10 @@ jobs:
           - arch: x86_64
             runner: macos-13
           - arch: arm64
-            runner: macos-14
+            runner: macos-15
     runs-on: ${{ matrix.runner }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: ${{ env.UPSTREAM_REPO }}
           ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
@@ -141,7 +141,7 @@ jobs:
           cp /tmp/aria2-install/bin/aria2c "dist/aria2c-darwin-${{ matrix.arch }}"
           chmod +x "dist/aria2c-darwin-${{ matrix.arch }}"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: aria2c-darwin-${{ matrix.arch }}
           path: dist/aria2c-darwin-${{ matrix.arch }}
@@ -153,7 +153,7 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: ${{ env.UPSTREAM_REPO }}
           ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
@@ -186,7 +186,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path dist
           Copy-Item /tmp/aria2-install/bin/aria2c.exe dist/aria2c-windows-amd64.exe -Force
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: aria2c-windows-amd64
           path: dist/aria2c-windows-amd64.exe
@@ -200,10 +200,10 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout this repo (for build scripts)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Checkout upstream aria2 source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.UPSTREAM_REPO }}
           ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
@@ -229,7 +229,7 @@ jobs:
         env:
           ANDROID_API: ${{ env.ANDROID_API }}
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: aria2c-android-${{ matrix.arch }}
           path: aria2-src/dist/aria2c-android-${{ matrix.arch }}
@@ -248,10 +248,10 @@ jobs:
       id-token: write
     steps:
       - name: Checkout this repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: dist
           pattern: aria2c-*

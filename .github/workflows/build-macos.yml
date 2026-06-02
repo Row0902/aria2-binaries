@@ -29,7 +29,7 @@ jobs:
     runs-on: macos-13
     steps:
       - name: Checkout upstream aria2
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.UPSTREAM_REPO }}
           ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
@@ -55,17 +55,17 @@ jobs:
           cp /tmp/aria2-install/bin/aria2c dist/aria2c-darwin-x86_64
           chmod +x dist/aria2c-darwin-x86_64
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: aria2c-darwin-x86_64
           path: dist/aria2c-darwin-x86_64
           compression-level: 0
 
   build-arm64:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Checkout upstream aria2
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ${{ env.UPSTREAM_REPO }}
           ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
@@ -91,7 +91,7 @@ jobs:
           cp /tmp/aria2-install/bin/aria2c dist/aria2c-darwin-arm64
           chmod +x dist/aria2c-darwin-arm64
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: aria2c-darwin-arm64
           path: dist/aria2c-darwin-arm64

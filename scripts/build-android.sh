@@ -211,6 +211,15 @@ make -j"$JOBS" install
 cd "$SRC_DIR"
 
 # ============================================
+# Create stub libraries for NDK r29+
+# (pthread and rt are integrated into libc on Android)
+# ============================================
+echo ""
+echo ">>> Creating stub libraries for NDK r29+"
+"$AR" crs "$INSTALL_DIR/lib/libpthread.a" 2>/dev/null || touch "$INSTALL_DIR/lib/libpthread.a"
+"$AR" crs "$INSTALL_DIR/lib/librt.a" 2>/dev/null || touch "$INSTALL_DIR/lib/librt.a"
+
+# ============================================
 # Build aria2
 # ============================================
 echo ""

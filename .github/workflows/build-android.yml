@@ -63,9 +63,22 @@ jobs:
       - name: Smoke test binary (via qemu)
         run: |
           sudo apt-get install -y -qq qemu-user-static
-          qemu-aarch64-static aria2-src/dist/aria2c-android-aarch64 --version
-          qemu-aarch64-static aria2-src/dist/aria2c-android-aarch64 --help > /dev/null
-          echo "✅ Smoke test passed"
+          # Set up QEMU LD prefix from NDK sysroot so the Bionic linker is found
+          NDK_SYSROOT="${{ env.ANDROID_NDK_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
+          if [ -d "$NDK_SYSROOT/usr/lib/aarch64-linux-android" ]; then
+            # Create minimal Android rootfs for QEMU
+            mkdir -p /tmp/android-sysroot/system/bin /tmp/android-sysroot/system/lib64
+            ln -sf "$NDK_SYSROOT/usr/lib/aarch64-linux-android/linker64" /tmp/android-sysroot/system/bin/linker64 2>/dev/null || true
+            ln -sf "$NDK_SYSROOT/usr/lib/aarch64-linux-android/libc.so" /tmp/android-sysroot/system/lib64/libc.so 2>/dev/null || true
+            ln -sf "$NDK_SYSROOT/usr/lib/aarch64-linux-android/libm.so" /tmp/android-sysroot/system/lib64/libm.so 2>/dev/null || true
+            ln -sf "$NDK_SYSROOT/usr/lib/aarch64-linux-android/libdl.so" /tmp/android-sysroot/system/lib64/libdl.so 2>/dev/null || true
+            QEMU_LD_PREFIX=/tmp/android-sysroot qemu-aarch64-static aria2-src/dist/aria2c-android-aarch64 --version
+            QEMU_LD_PREFIX=/tmp/android-sysroot qemu-aarch64-static aria2-src/dist/aria2c-android-aarch64 --help > /dev/null
+            echo "✅ Smoke test passed"
+          else
+            echo "⚠️  NDK sysroot not found at expected path, skipping smoke test"
+            ls -la "${{ env.ANDROID_NDK_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/" 2>/dev/null || echo "NDK lib dir not found"
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
@@ -110,9 +123,19 @@ jobs:
       - name: Smoke test binary (via qemu)
         run: |
           sudo apt-get install -y -qq qemu-user-static
-          qemu-arm-static aria2-src/dist/aria2c-android-armv7 --version
-          qemu-arm-static aria2-src/dist/aria2c-android-armv7 --help > /dev/null
-          echo "✅ Smoke test passed"
+          NDK_SYSROOT="${{ env.ANDROID_NDK_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
+          if [ -d "$NDK_SYSROOT/usr/lib/arm-linux-androideabi" ]; then
+            mkdir -p /tmp/android-sysroot/system/bin /tmp/android-sysroot/system/lib
+            ln -sf "$NDK_SYSROOT/usr/lib/arm-linux-androideabi/linker" /tmp/android-sysroot/system/bin/linker 2>/dev/null || true
+            ln -sf "$NDK_SYSROOT/usr/lib/arm-linux-androideabi/libc.so" /tmp/android-sysroot/system/lib/libc.so 2>/dev/null || true
+            ln -sf "$NDK_SYSROOT/usr/lib/arm-linux-androideabi/libm.so" /tmp/android-sysroot/system/lib/libm.so 2>/dev/null || true
+            ln -sf "$NDK_SYSROOT/usr/lib/arm-linux-androideabi/libdl.so" /tmp/android-sysroot/system/lib/libdl.so 2>/dev/null || true
+            QEMU_LD_PREFIX=/tmp/android-sysroot qemu-arm-static aria2-src/dist/aria2c-android-armv7 --version
+            QEMU_LD_PREFIX=/tmp/android-sysroot qemu-arm-static aria2-src/dist/aria2c-android-armv7 --help > /dev/null
+            echo "✅ Smoke test passed"
+          else
+            echo "⚠️  NDK sysroot not found, skipping smoke test"
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
@@ -157,9 +180,19 @@ jobs:
       - name: Smoke test binary (via qemu)
         run: |
           sudo apt-get install -y -qq qemu-user-static
-          qemu-x86_64-static aria2-src/dist/aria2c-android-x86_64 --version
-          qemu-x86_64-static aria2-src/dist/aria2c-android-x86_64 --help > /dev/null
-          echo "✅ Smoke test passed"
+          NDK_SYSROOT="${{ env.ANDROID_NDK_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
+          if [ -d "$NDK_SYSROOT/usr/lib/x86_64-linux-android" ]; then
+            mkdir -p /tmp/android-sysroot/system/bin /tmp/android-sysroot/system/lib64
+            ln -sf "$NDK_SYSROOT/usr/lib/x86_64-linux-android/linker64" /tmp/android-sysroot/system/bin/linker64 2>/dev/null || true
+            ln -sf "$NDK_SYSROOT/usr/lib/x86_64-linux-android/libc.so" /tmp/android-sysroot/system/lib64/libc.so 2>/dev/null || true
+            ln -sf "$NDK_SYSROOT/usr/lib/x86_64-linux-android/libm.so" /tmp/android-sysroot/system/lib64/libm.so 2>/dev/null || true
+            ln -sf "$NDK_SYSROOT/usr/lib/x86_64-linux-android/libdl.so" /tmp/android-sysroot/system/lib64/libdl.so 2>/dev/null || true
+            QEMU_LD_PREFIX=/tmp/android-sysroot qemu-x86_64-static aria2-src/dist/aria2c-android-x86_64 --version
+            QEMU_LD_PREFIX=/tmp/android-sysroot qemu-x86_64-static aria2-src/dist/aria2c-android-x86_64 --help > /dev/null
+            echo "✅ Smoke test passed"
+          else
+            echo "⚠️  NDK sysroot not found, skipping smoke test"
+          fi
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7

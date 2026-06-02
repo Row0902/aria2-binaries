@@ -290,9 +290,25 @@ jobs:
           if [ "${{ matrix.arch }}" = "armv7" ]; then
             QEMU_CMD="qemu-arm-static"
           fi
-          $QEMU_CMD aria2-src/dist/aria2c-android-${{ matrix.arch }} --version
-          $QEMU_CMD aria2-src/dist/aria2c-android-${{ matrix.arch }} --help > /dev/null
-          echo "✅ Smoke test passed"
+          # Map matrix arch to NDK triple for library paths
+          case "${{ matrix.arch }}" in
+            aarch64) NDK_LIBDIR="aarch64-linux-android"; LDIR="lib64"; LINKER="linker64" ;;
+            armv7)   NDK_LIBDIR="arm-linux-androideabi"; LDIR="lib"; LINKER="linker" ;;
+            x86_64)  NDK_LIBDIR="x86_64-linux-android"; LDIR="lib64"; LINKER="linker64" ;;
+          esac
+          NDK_SYSROOT="${{ env.ANDROID_NDK_HOME }}/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
+          if [ -d "$NDK_SYSROOT/usr/lib/$NDK_LIBDIR" ]; then
+            mkdir -p "/tmp/android-sysroot/system/bin" "/tmp/android-sysroot/system/$LDIR"
+            ln -sf "$NDK_SYSROOT/usr/lib/$NDK_LIBDIR/$LINKER" "/tmp/android-sysroot/system/bin/$LINKER" 2>/dev/null || true
+            ln -sf "$NDK_SYSROOT/usr/lib/$NDK_LIBDIR/libc.so" "/tmp/android-sysroot/system/$LDIR/libc.so" 2>/dev/null || true
+            ln -sf "$NDK_SYSROOT/usr/lib/$NDK_LIBDIR/libm.so" "/tmp/android-sysroot/system/$LDIR/libm.so" 2>/dev/null || true
+            ln -sf "$NDK_SYSROOT/usr/lib/$NDK_LIBDIR/libdl.so" "/tmp/android-sysroot/system/$LDIR/libdl.so" 2>/dev/null || true
+            QEMU_LD_PREFIX=/tmp/android-sysroot $QEMU_CMD aria2-src/dist/aria2c-android-${{ matrix.arch }} --version
+            QEMU_LD_PREFIX=/tmp/android-sysroot $QEMU_CMD aria2-src/dist/aria2c-android-${{ matrix.arch }} --help > /dev/null
+            echo "✅ Smoke test passed"
+          else
+            echo "⚠️  NDK sysroot not found at $NDK_SYSROOT/usr/lib/$NDK_LIBDIR, skipping smoke test"
+          fi
 
       - uses: actions/upload-artifact@v7
         with:

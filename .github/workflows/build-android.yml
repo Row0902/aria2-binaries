@@ -4,135 +4,148 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "aria2 version tag (e.g. release-1.37.0)"
+        description: "aria2 version (e.g., 1.37.0)"
         required: true
-        default: "release-1.37.0"
-  push:
-    tags:
-      - "release-*"
+        default: "1.37.0"
+      commit_sha:
+        description: "Explicit commit SHA from aria2/aria2 (optional, defaults to master)"
+        required: false
+        default: ""
+
+concurrency:
+  group: android-${{ github.ref_name || github.sha }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  UPSTREAM_REPO: aria2/aria2
+  UPSTREAM_BRANCH: master
+  NDK_VERSION: r27
+  ANDROID_API: 24
 
 jobs:
   build-aarch64:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: aria2/aria2
-          ref: ${{ github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'release-1.37.0' }}
-      - uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r27
-          add-to-path: false
-      - run: |
-          export TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64
-          export TARGET=aarch64-linux-android
-          export API=24
-          export CC=$TOOLCHAIN/bin/$TARGET$API-clang
-          export CXX=$TOOLCHAIN/bin/$TARGET$API-clang++
-          export AR=$TOOLCHAIN/bin/llvm-ar
-          export RANLIB=$TOOLCHAIN/bin/llvm-ranlib
-          export LD=$TOOLCHAIN/bin/ld
-          export STRIP=$TOOLCHAIN/bin/llvm-strip
+      - name: Checkout this repo (for build scripts)
+        uses: actions/checkout@v4
 
-          ./configure \
-            ARIA2_STATIC=yes \
-            --prefix=/tmp/aria2-install \
-            --host=$TARGET \
-            --without-libgnutls \
-            --with-openssl --disable-openssl \
-            --without-libnettle \
-            --without-libgmp \
-            --without-libgcrypt \
-            --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
-          make -j"$(nproc)" && make install-strip
-      - run: |
-          mkdir -p dist
-          cp /tmp/aria2-install/bin/aria2c dist/aria2c-android-aarch64
-          chmod +x dist/aria2c-android-aarch64
-      - uses: actions/upload-artifact@v4
+      - name: Checkout upstream aria2 source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.UPSTREAM_REPO }}
+          ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
+          path: aria2-src
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: ${{ env.NDK_VERSION }}
+          add-to-path: false
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            autoconf automake autopoint libtool pkg-config \
+            curl ca-certificates dpkg-dev
+
+      - name: Build aria2 for aarch64
+        run: |
+          cd aria2-src
+          ../scripts/build-android.sh aarch64
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+          ANDROID_API: ${{ env.ANDROID_API }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
           name: aria2c-android-aarch64
-          path: dist/aria2c-android-aarch64
+          path: aria2-src/dist/aria2c-android-aarch64
           compression-level: 0
 
   build-armv7:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: aria2/aria2
-          ref: ${{ github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'release-1.37.0' }}
-      - uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r27
-          add-to-path: false
-      - run: |
-          export TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64
-          export TARGET=armv7a-linux-androideabi
-          export API=24
-          export CC=$TOOLCHAIN/bin/$TARGET$API-clang
-          export CXX=$TOOLCHAIN/bin/$TARGET$API-clang++
-          export AR=$TOOLCHAIN/bin/llvm-ar
-          export RANLIB=$TOOLCHAIN/bin/llvm-ranlib
-          export LD=$TOOLCHAIN/bin/ld
-          export STRIP=$TOOLCHAIN/bin/llvm-strip
+      - name: Checkout this repo (for build scripts)
+        uses: actions/checkout@v4
 
-          ./configure \
-            ARIA2_STATIC=yes \
-            --prefix=/tmp/aria2-install \
-            --host=arm-linux-androideabi \
-            --without-libgnutls \
-            --with-openssl --disable-openssl \
-            --without-libnettle --without-libgmp \
-            --without-libgcrypt
-          make -j"$(nproc)" && make install-strip
-      - run: |
-          mkdir -p dist
-          cp /tmp/aria2-install/bin/aria2c dist/aria2c-android-armv7
-          chmod +x dist/aria2c-android-armv7
-      - uses: actions/upload-artifact@v4
+      - name: Checkout upstream aria2 source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.UPSTREAM_REPO }}
+          ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
+          path: aria2-src
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: ${{ env.NDK_VERSION }}
+          add-to-path: false
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            autoconf automake autopoint libtool pkg-config \
+            curl ca-certificates dpkg-dev
+
+      - name: Build aria2 for armv7
+        run: |
+          cd aria2-src
+          ../scripts/build-android.sh armv7
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+          ANDROID_API: ${{ env.ANDROID_API }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
           name: aria2c-android-armv7
-          path: dist/aria2c-android-armv7
+          path: aria2-src/dist/aria2c-android-armv7
           compression-level: 0
 
   build-x86_64:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: aria2/aria2
-          ref: ${{ github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'release-1.37.0' }}
-      - uses: nttld/setup-ndk@v1
-        with:
-          ndk-version: r27
-          add-to-path: false
-      - run: |
-          export TOOLCHAIN=$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64
-          export TARGET=x86_64-linux-android
-          export API=24
-          export CC=$TOOLCHAIN/bin/$TARGET$API-clang
-          export CXX=$TOOLCHAIN/bin/$TARGET$API-clang++
-          export AR=$TOOLCHAIN/bin/llvm-ar
-          export RANLIB=$TOOLCHAIN/bin/llvm-ranlib
-          export LD=$TOOLCHAIN/bin/ld
-          export STRIP=$TOOLCHAIN/bin/llvm-strip
+      - name: Checkout this repo (for build scripts)
+        uses: actions/checkout@v4
 
-          ./configure \
-            ARIA2_STATIC=yes \
-            --prefix=/tmp/aria2-install \
-            --host=$TARGET \
-            --without-libgnutls \
-            --with-openssl --disable-openssl \
-            --without-libnettle --without-libgmp \
-            --without-libgcrypt
-          make -j"$(nproc)" && make install-strip
-      - run: |
-          mkdir -p dist
-          cp /tmp/aria2-install/bin/aria2c dist/aria2c-android-x86_64
-          chmod +x dist/aria2c-android-x86_64
-      - uses: actions/upload-artifact@v4
+      - name: Checkout upstream aria2 source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.UPSTREAM_REPO }}
+          ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
+          path: aria2-src
+
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: ${{ env.NDK_VERSION }}
+          add-to-path: false
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            autoconf automake autopoint libtool pkg-config \
+            curl ca-certificates dpkg-dev
+
+      - name: Build aria2 for x86_64
+        run: |
+          cd aria2-src
+          ../scripts/build-android.sh x86_64
+        env:
+          ANDROID_NDK_HOME: ${{ env.ANDROID_NDK_HOME }}
+          ANDROID_API: ${{ env.ANDROID_API }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
         with:
           name: aria2c-android-x86_64
-          path: dist/aria2c-android-x86_64
+          path: aria2-src/dist/aria2c-android-x86_64
           compression-level: 0

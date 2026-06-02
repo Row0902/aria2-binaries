@@ -4,37 +4,61 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "aria2 version tag (e.g. release-1.37.0)"
+        description: "aria2 version (e.g., 1.37.0)"
         required: true
-        default: "release-1.37.0"
-  push:
-    tags:
-      - "release-*"
+        default: "1.37.0"
+      commit_sha:
+        description: "Explicit commit SHA from aria2/aria2 (optional, defaults to master)"
+        required: false
+        default: ""
+
+concurrency:
+  group: linux-${{ github.ref_name || github.sha }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  UPSTREAM_REPO: aria2/aria2
+  UPSTREAM_BRANCH: master
 
 jobs:
   build-x86_64:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout upstream aria2
+        uses: actions/checkout@v4
         with:
-          repository: aria2/aria2
-          ref: ${{ github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'release-1.37.0' }}
-      - run: |
+          repository: ${{ env.UPSTREAM_REPO }}
+          ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
+
+      - name: Install build dependencies
+        run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
             autoconf automake autopoint libtool pkg-config \
             libcppunit-dev libssl-dev libxml2-dev libexpat1-dev \
             libc-ares-dev zlib1g-dev libsqlite3-dev libssh2-1-dev g++ make
-      - run: |
+
+      - name: Generate configure script
+        run: autoreconf -i
+
+      - name: Configure, build, install
+        run: |
           ./configure ARIA2_STATIC=yes --prefix=/tmp/aria2-install \
             --without-libgnutls --with-openssl \
             --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
           make -j"$(nproc)" && make install-strip
-      - run: |
+
+      - name: Package binary
+        run: |
           mkdir -p dist
           cp /tmp/aria2-install/bin/aria2c dist/aria2c-linux-x86_64
           strip dist/aria2c-linux-x86_64
           chmod +x dist/aria2c-linux-x86_64
+
       - uses: actions/upload-artifact@v4
         with:
           name: aria2c-linux-x86_64
@@ -44,27 +68,40 @@ jobs:
   build-aarch64:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout upstream aria2
+        uses: actions/checkout@v4
         with:
-          repository: aria2/aria2
-          ref: ${{ github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'release-1.37.0' }}
-      - run: |
+          repository: ${{ env.UPSTREAM_REPO }}
+          ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
+
+      - name: Set up multiarch and install cross-toolchain
+        run: |
+          sudo dpkg --add-architecture arm64
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
             autoconf automake autopoint libtool pkg-config \
             g++-aarch64-linux-gnu binutils-aarch64-linux-gnu \
             libssl-dev:arm64 libxml2-dev:arm64 libexpat1-dev:arm64 \
-            libc-ares-dev:arm64 zlib1g-dev:arm64 libsqlite3-dev:arm64
-      - run: |
+            libc-ares-dev:arm64 zlib1g-dev:arm64 libsqlite3-dev:arm64 \
+            libssh2-1-dev:arm64
+
+      - name: Generate configure script
+        run: autoreconf -i
+
+      - name: Configure, build, install (cross)
+        run: |
           ./configure ARIA2_STATIC=yes --prefix=/tmp/aria2-install \
             --host=aarch64-linux-gnu --without-libgnutls --with-openssl \
             --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
           make -j"$(nproc)" && make install-strip
-      - run: |
+
+      - name: Package binary
+        run: |
           mkdir -p dist
           cp /tmp/aria2-install/bin/aria2c dist/aria2c-linux-aarch64
           aarch64-linux-gnu-strip dist/aria2c-linux-aarch64
           chmod +x dist/aria2c-linux-aarch64
+
       - uses: actions/upload-artifact@v4
         with:
           name: aria2c-linux-aarch64
@@ -74,25 +111,40 @@ jobs:
   build-armv7:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout upstream aria2
+        uses: actions/checkout@v4
         with:
-          repository: aria2/aria2
-          ref: ${{ github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'release-1.37.0' }}
-      - run: |
+          repository: ${{ env.UPSTREAM_REPO }}
+          ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
+
+      - name: Set up multiarch and install cross-toolchain
+        run: |
+          sudo dpkg --add-architecture armhf
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
             autoconf automake autopoint libtool pkg-config \
-            g++-arm-linux-gnueabihf binutils-arm-linux-gnueabihf
-      - run: |
+            g++-arm-linux-gnueabihf binutils-arm-linux-gnueabihf \
+            libssl-dev:armhf libxml2-dev:armhf libexpat1-dev:armhf \
+            libc-ares-dev:armhf zlib1g-dev:armhf libsqlite3-dev:armhf \
+            libssh2-1-dev:armhf
+
+      - name: Generate configure script
+        run: autoreconf -i
+
+      - name: Configure, build, install (cross)
+        run: |
           ./configure ARIA2_STATIC=yes --prefix=/tmp/aria2-install \
             --host=arm-linux-gnueabihf --without-libgnutls --with-openssl \
             --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt
           make -j"$(nproc)" && make install-strip
-      - run: |
+
+      - name: Package binary
+        run: |
           mkdir -p dist
           cp /tmp/aria2-install/bin/aria2c dist/aria2c-linux-armv7
           arm-linux-gnueabihf-strip dist/aria2c-linux-armv7
           chmod +x dist/aria2c-linux-armv7
+
       - uses: actions/upload-artifact@v4
         with:
           name: aria2c-linux-armv7

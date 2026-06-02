@@ -4,33 +4,57 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "aria2 version tag (e.g. release-1.37.0)"
+        description: "aria2 version (e.g., 1.37.0)"
         required: true
-        default: "release-1.37.0"
-  push:
-    tags:
-      - "release-*"
+        default: "1.37.0"
+      commit_sha:
+        description: "Explicit commit SHA from aria2/aria2 (optional, defaults to master)"
+        required: false
+        default: ""
+
+concurrency:
+  group: macos-${{ github.ref_name || github.sha }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  UPSTREAM_REPO: aria2/aria2
+  UPSTREAM_BRANCH: master
 
 jobs:
   build-x86_64:
     runs-on: macos-13
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout upstream aria2
+        uses: actions/checkout@v4
         with:
-          repository: aria2/aria2
-          ref: ${{ github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'release-1.37.0' }}
-      - run: |
+          repository: ${{ env.UPSTREAM_REPO }}
+          ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
+
+      - name: Install build dependencies
+        run: |
           brew update
           brew install autoconf automake libtool pkg-config \
             openssl libxml2 expat c-ares sqlite3
-      - run: |
+
+      - name: Generate configure script
+        run: autoreconf -i
+
+      - name: Configure, build, install
+        run: |
           ./configure ARIA2_STATIC=yes --prefix=/tmp/aria2-install \
             --without-libgnutls --with-openssl
           make -j"$(sysctl -n hw.logicalcpu)" && make install-strip
-      - run: |
+
+      - name: Package binary
+        run: |
           mkdir -p dist
           cp /tmp/aria2-install/bin/aria2c dist/aria2c-darwin-x86_64
           chmod +x dist/aria2c-darwin-x86_64
+
       - uses: actions/upload-artifact@v4
         with:
           name: aria2c-darwin-x86_64
@@ -40,22 +64,33 @@ jobs:
   build-arm64:
     runs-on: macos-14
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout upstream aria2
+        uses: actions/checkout@v4
         with:
-          repository: aria2/aria2
-          ref: ${{ github.event.inputs.version || (startsWith(github.ref, 'refs/tags/') && github.ref_name) || 'release-1.37.0' }}
-      - run: |
+          repository: ${{ env.UPSTREAM_REPO }}
+          ref: ${{ inputs.commit_sha || env.UPSTREAM_BRANCH }}
+
+      - name: Install build dependencies
+        run: |
           brew update
           brew install autoconf automake libtool pkg-config \
             openssl libxml2 expat c-ares sqlite3
-      - run: |
+
+      - name: Generate configure script
+        run: autoreconf -i
+
+      - name: Configure, build, install
+        run: |
           ./configure ARIA2_STATIC=yes --prefix=/tmp/aria2-install \
             --without-libgnutls --with-openssl
           make -j"$(sysctl -n hw.logicalcpu)" && make install-strip
-      - run: |
+
+      - name: Package binary
+        run: |
           mkdir -p dist
           cp /tmp/aria2-install/bin/aria2c dist/aria2c-darwin-arm64
           chmod +x dist/aria2c-darwin-arm64
+
       - uses: actions/upload-artifact@v4
         with:
           name: aria2c-darwin-arm64
